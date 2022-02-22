@@ -1,0 +1,7 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+metadata_meters.xlsx
+*.yml
+db
