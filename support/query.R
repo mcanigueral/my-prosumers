@@ -7,7 +7,7 @@ end_date <- today() + days(1)
 # Query for one user ------------------------------------------------------
 
 user_demand <- query_timeseries_data_table_py(
-  power_table, 'id', '009', 'timestamp',
+  power_table, 'id', '004', 'timestamp',
   start_date, end_date
 ) %>%
   mutate(
@@ -16,16 +16,19 @@ user_demand <- query_timeseries_data_table_py(
   ) %>%
   select(datetime, id, exported, imported)
 
-user_demand %>%
+# user_demand %>%
+readxl::read_excel('db/009.xlsx') %>%
+  filter(datetime >= today()-days(2)) %>%
   convert_historic_to_instant_power() %>%
   pivot_longer(cols = c(Imported, Exported), names_to = "Flux") %>%
   mutate(datetime = datetime_to_timestamp(datetime)) %>%
-  hchart(hcaes(x = datetime, y = value, group = Flux),  type = 'area',
+  hchart(hcaes(x = datetime, y = value, group = Flux),  type = 'area', panning = T, zoomType = 'x',
          color = c("#edd17e", "#7cb5ec"), name = c("Exported (W)", "Imported (W)")) %>%
   hc_xAxis(type = 'datetime') %>%
   hc_navigator(enabled = T) %>%
   hc_rangeSelector(
-    enabled = TRUE,
+    enabled = T,
+    inputEnabled = T,
     buttons = list(
       list(type = 'all', text = 'Total', title = 'Totes les dades'),
       list(type = 'month', count = 1, text = '1m', title = '1 month'),
@@ -37,12 +40,14 @@ user_demand %>%
     selected = 3
   ) %>%
   hc_exporting(enabled = T) %>%
-  hc_loading(
-    hideDuration = 10000,
-    showDuration = 10000
-  ) %>%
   hc_legend(itemStyle = list(color = 'white', fill = 'white'))
 
+
+readxl::read_excel('db/009.xlsx') %>%
+  convert_historic_to_instant_power() %>%
+  dyplot() %>%
+  dySeries('Imported', color = 'navy', fillGraph = T) %>%
+  dySeries('Exported', color = 'orange', fillGraph = T)
 
 
 # Time series plot

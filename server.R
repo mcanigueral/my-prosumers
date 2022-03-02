@@ -10,7 +10,6 @@ auth0_server(function(input, output, session) {
 
   power_data <- reactive({
     req(user_metadata())
-    waiter_show(html = waiting_screen("Loading..."), color = "#00000080")
     if (file.exists(user_metadata()$filename)) {
       last_power_data <- readxl::read_excel(user_metadata()$filename) %>%
         mutate(datetime = with_tz(datetime, tz = config$tzone))
@@ -31,12 +30,13 @@ auth0_server(function(input, output, session) {
         select(datetime, exported, imported)
 
       power_tbl <- bind_rows(last_power_data, new_power_data) %>%
+        arrange(datetime) %>%
+        mutate_if(is.numeric, round, 3) %>%
         distinct()
       writexl::write_xlsx(power_tbl, user_metadata()$filename)
     } else {
       power_tbl <- tibble(datetime = today(), power = NA)
     }
-    waiter_hide()
     return(power_tbl)
   })
 
@@ -52,8 +52,7 @@ auth0_server(function(input, output, session) {
       value = paste(round(pdata$power[nrow(pdata)]), "W"),
       subtitle = paste("At", strftime(pdata$datetime[nrow(pdata)], format = "%H:%M")),
       icon = icon("bolt"),
-      color = 'blue',
-      width = 6,
+      color = 'olive',
       fill = T
     )
   })
@@ -76,10 +75,9 @@ auth0_server(function(input, output, session) {
     infoBox(
       title = "Imported today",
       value = paste(energy_today()$Imported, "kWh"),
-      # subtitle = strftime(energy_today$datetime[1], format = "%d/%m/%Y"),
+      subtitle = paste0(round(energy_today()$Imported/energy_today()$Exported*100), "% of exported energy"),
       icon = icon("level-down-alt"),
-      color = 'blue',
-      width = 6,
+      color = 'light-blue',
       fill = T
     )
   })
@@ -88,18 +86,22 @@ auth0_server(function(input, output, session) {
     infoBox(
       title = "Exported today",
       value = paste(energy_today()$Exported, "kWh"),
-      # subtitle = strftime(energy_today$datetime[1], format = "%d/%m/%Y"),
+      subtitle = paste0(round(energy_today()$Exported/energy_today()$Imported*100), "% of imported energy"),
       icon = icon("level-up-alt"),
-      color = 'blue',
-      width = 6,
+      color = 'yellow',
       fill = T
     )
   })
 
 
   output$plot_timeseries <- renderHighchart({
-    power_data() %>%
-      convert_historic_to_instant_power() %>%
+    instant_power <- power_data() %>%
+      filter(date(datetime) >= (today()-days(8))) %>% # 16 seconds
+      # filter(date(datetime) >= (today()-days(15))) %>% # 22 seconds
+      # filter(date(datetime) >= (today()-days(30))) %>% # 33 seconds
+      convert_historic_to_instant_power()
+
+    plot_power <- instant_power %>%
       pivot_longer(cols = c(Imported, Exported), names_to = "Flux") %>%
       mutate(datetime = datetime_to_timestamp(datetime)) %>%
       hchart(hcaes(x = datetime, y = value, group = Flux),  type = 'area',
@@ -108,22 +110,25 @@ auth0_server(function(input, output, session) {
       hc_navigator(enabled = T) %>%
       hc_rangeSelector(
         enabled = T,
+        inputEnabled = T,
         buttons = list(
-          list(type = 'all', text = 'Total', title = 'Totes les dades'),
-          list(type = 'month', count = 1, text = '1m', title = '1 month'),
+          # list(type = 'all', text = 'Total', title = 'All data'),
+          # list(type = 'month', count = 1, text = '1m', title = '1 month'),
+          # list(type = 'week', count = 2, text = '2w', title = '2 weeks'),
           list(type = 'week', count = 1, text = '1w', title = '1 week'),
+          list(type = 'day', count = 4, text = '4d', title = '4 days'),
+          list(type = 'day', count = 2, text = '2d', title = '2 days'),
           list(type = 'day', count = 1, text = '1d', title = '1 day'),
+          list(type = 'hour', count = hour(now()), text = 'Today', title = 'Today'),
           list(type = 'hour', count = 6, text = '6h', title = '6 hours'),
           list(type = 'hour', count = 1, text = '1h', title = '1 hour')
         ),
-        selected = 3
+        selected = 4
       ) %>%
       hc_exporting(enabled = T) %>%
-      hc_loading(
-        hideDuration = 10000,
-        showDuration = 10000
-      ) %>%
       hc_legend(itemStyle = list(color = 'white', fill = 'white'))
+
+    return(plot_power)
   })
 
   output$plot_columns <- renderHighchart({

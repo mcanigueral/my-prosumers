@@ -16,11 +16,8 @@ source('support/server_utils.R')
 source('support/ui_utils.R')
 # shiny::runApp(port = 8080, launch.browser = TRUE)
 
-
 a0_info <- auth0::auth0_info()
-# a0_info$api$request <- "prosumers.eu.auth0.com/oauth/token"
-# a0_info$api$authorize <- "prosumers.eu.auth0.com/authorize"
-# a0_info$api$access <- "prosumers.eu.auth0.com/oauth/token"
+
 
 # Python configuration
 config <- config::get(file = 'config.yml')

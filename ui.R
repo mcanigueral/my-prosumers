@@ -2,13 +2,14 @@ auth0_ui(fluidPage(
   shinyWidgets::useShinydashboard(),
   theme = shinytheme("darkly"),
   use_waiter(),
+  waiterOnBusy(html = waiting_screen("Loading..."), color = "#00000080"),
+  # autoWaiter(),
   # # This removes the "code=XXX" of the URL after login, so avoids the error after refreshing
   tags$script(JS("setTimeout(function(){history.pushState({}, 'Page Title', '/');}, 2000);")),
 
   # Application title
   titlePanel(tagList(
-    # img(src = "udg_logo_short.png", height = 40),
-    # HTML("&nbsp;"),
+    img(src = "https://aecl.nl/wp-content/uploads/2021/05/beeldmerk_aecl.png", height = 40),
     span(strong("My Smart Meter")),
     span(
       logoutButton(
@@ -17,7 +18,7 @@ auth0_ui(fluidPage(
       ),
       style = "position:absolute;right:1em;"
     )
-  ), windowTitle = "My prosumption"),
+  ), windowTitle = "My smart meter"),
   hr(),
 
   # Menu
@@ -25,10 +26,23 @@ auth0_ui(fluidPage(
 
   # Body
   fluidRow(
+    # column(
+    #   4, align='center',
+    #   div(style="display: inline-block;", infoBoxOutput('imported_today', width = 12))
+    # ),
+    # column(
+    #   4, align='center',
+    #   div(style="display: inline-block;", infoBoxOutput('power_now', width = 12))
+    # ),
+    # column(
+    #   4, align='center',
+    #   div(style="display: inline-block;", infoBoxOutput('exported_today', width = 12))
+    # ),
     infoBoxOutput('imported_today'),
     infoBoxOutput('power_now'),
     infoBoxOutput('exported_today')
   ),
+
   hr(),
   fluidRow(
     highchartOutput('plot_timeseries'),
