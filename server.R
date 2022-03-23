@@ -18,9 +18,19 @@ auth0_server(function(input, output, session) {
       last_power_data <- tibble()
       last_date <- dmy(01012022)
     }
+
+    if (user_metadata()$id %in% c("001", "002")) {
+      query_interval_days <- 5
+    } else {
+      query_interval_days <- 30
+    }
+
     query_tbl <- query_timeseries_data_table_py(
-      power_table, 'id', user_metadata()$id, 'timestamp', last_date, today()+days(1)
+      power_table, 'id', user_metadata()$id, 'timestamp',
+      last_date, today()+days(1),
+      query_interval_days = query_interval_days
     )
+
     if (!is.null(query_tbl)) {
       new_power_data <- query_tbl %>%
         mutate(
@@ -43,6 +53,7 @@ auth0_server(function(input, output, session) {
 
   output$power_now <- renderInfoBox({
 
+    pdata <<- power_data()
     pdata <- power_data() %>%
       convert_historic_to_instant_power() %>%
       mutate(power = Imported - Exported)
@@ -72,10 +83,15 @@ auth0_server(function(input, output, session) {
   })
 
   output$imported_today <- renderInfoBox({
+    subtitle <- ifelse(
+      energy_today()$Imported > 0 & energy_today()$Exported > 0,
+      paste0(round(energy_today()$Imported/energy_today()$Exported*100), "% of exported energy"),
+      NULL
+    )
     infoBox(
       title = "Imported today",
       value = paste(energy_today()$Imported, "kWh"),
-      subtitle = paste0(round(energy_today()$Imported/energy_today()$Exported*100), "% of exported energy"),
+      subtitle = subtitle,
       icon = icon("level-down-alt"),
       color = 'light-blue',
       fill = T
@@ -83,10 +99,15 @@ auth0_server(function(input, output, session) {
   })
 
   output$exported_today <- renderInfoBox({
+    subtitle <- ifelse(
+      energy_today()$Exported > 0 & energy_today()$Imported > 0,
+      paste0(round(energy_today()$Exported/energy_today()$Imported*100), "% of imported energy"),
+      NULL
+    )
     infoBox(
       title = "Exported today",
       value = paste(energy_today()$Exported, "kWh"),
-      subtitle = paste0(round(energy_today()$Exported/energy_today()$Imported*100), "% of imported energy"),
+      subtitle = subtitle,
       icon = icon("level-up-alt"),
       color = 'yellow',
       fill = T
@@ -96,7 +117,7 @@ auth0_server(function(input, output, session) {
 
   output$plot_timeseries <- renderHighchart({
     instant_power <- power_data() %>%
-      filter(date(datetime) >= (today()-days(8))) %>% # 16 seconds
+      filter(date(datetime) >= (today()-days(7))) %>% # 16 seconds
       # filter(date(datetime) >= (today()-days(15))) %>% # 22 seconds
       # filter(date(datetime) >= (today()-days(30))) %>% # 33 seconds
       convert_historic_to_instant_power()
@@ -106,7 +127,8 @@ auth0_server(function(input, output, session) {
       mutate(datetime = datetime_to_timestamp(datetime)) %>%
       hchart(hcaes(x = datetime, y = value, group = Flux),  type = 'area',
              color = c("#edd17e", "#7cb5ec"), name = c("Exported (W)", "Imported (W)")) %>%
-      hc_xAxis(type = 'datetime') %>%
+      hc_xAxis(type = 'datetime', title = list(text = "")) %>%
+      hc_yAxis(title =  list(text = "Power (W)")) %>%
       hc_navigator(enabled = T) %>%
       hc_rangeSelector(
         enabled = T,
@@ -140,24 +162,16 @@ auth0_server(function(input, output, session) {
         Imported = round(Imported - lag(Imported), 2),
         Exported = round(Exported - lag(Exported), 2)
       ) %>%
-      drop_na() %>%
+      filter_laggable_timeseries(resolution = 60*24) %>%
       pivot_longer(cols = c(Imported, Exported), names_to = "Flux") %>%
       mutate(date = datetime_to_timestamp(date)) %>%
       hchart(type = "column", hcaes(x = date, y = value, group = Flux),
              color = c("#edd17e", "#7cb5ec"), name = c("Exported (kWh)", "Imported (kWh)")) %>%
-      hc_xAxis(type = 'datetime') %>%
+      hc_xAxis(type = 'datetime', title = list(text = "")) %>%
+      hc_yAxis(title =  list(text = "Energy (kWh)")) %>%
       hc_rangeSelector(enabled = F) %>%
       hc_exporting(enabled = T) %>%
       hc_legend(itemStyle = list(color = 'white', fill = 'white'))
   })
-
-  # output$download <- downloadHandler(
-  #   filename = function() {
-  #     paste0("consum_", today(), ".xlsx")
-  #   },
-  #   content = function(file) {
-  #     writexl::write_xlsx(power_data(), file)
-  #   }
-  # )
 
 }, info = a0_info)

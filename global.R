@@ -39,7 +39,6 @@ sensors_dynamodb <- get_dynamodb_py(
   region_name = config$dynamodb$region
 )
 
-
 power_table <- get_dynamo_table_py(sensors_dynamodb, config$dynamodb$table)
 
 

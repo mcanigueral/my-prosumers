@@ -16,25 +16,35 @@ parse_meters_payload <- function(payload) {
   }
 }
 
+payload_str_to_num <- function(str) {
+  as.numeric(strsplit(str, '\\*')[[1]][1])
+}
+
 
 # From historic log to instant value --------------------------------------
 # df must have columns "imported" and "exported"
 convert_historic_to_instant_power <- function(df) {
-  previous_dttm <- df$datetime - minutes(5)
-  idx_with_previous <- lag(df$datetime) == previous_dttm
   df %>%
     rename(Imported = imported, Exported = exported) %>%
     mutate(
       Imported = Imported - lag(Imported),
       Exported = Exported - lag(Exported)
     ) %>%
-    # drop_na() %>%
-    filter(idx_with_previous) %>%
+    filter_laggable_timeseries(resolution = 5) %>%
     mutate(
       Imported = Imported*1000*60/5, # E=P*t=P*5min/60min -> P=E*60/5
       Exported = Exported*1000*60/5
     ) %>%
     mutate_if(is.numeric, round, 2)
 }
+
+
+filter_laggable_timeseries <- function(df, resolution) {
+  previous_dttm <- df[[1]] - minutes(resolution)
+  idx_with_previous <- lag(df[[1]]) == previous_dttm
+  filter(df, idx_with_previous)
+}
+
+
 
 

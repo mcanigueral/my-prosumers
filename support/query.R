@@ -1,13 +1,13 @@
 
 source('global.R')
 
-start_date <- dmy(01012022)
+start_date <- today()-days(7)
 end_date <- today() + days(1)
 
 # Query for one user ------------------------------------------------------
 
 user_demand <- query_timeseries_data_table_py(
-  power_table, 'id', '004', 'timestamp',
+  power_table, 'id', '001', 'timestamp',
   start_date, end_date
 ) %>%
   mutate(
@@ -16,9 +16,9 @@ user_demand <- query_timeseries_data_table_py(
   ) %>%
   select(datetime, id, exported, imported)
 
-# user_demand %>%
-readxl::read_excel('db/009.xlsx') %>%
-  filter(datetime >= today()-days(2)) %>%
+user_demand %>%
+# readxl::read_excel('db/009.xlsx') %>%
+  filter(datetime >= today()-days(7)) %>%
   convert_historic_to_instant_power() %>%
   pivot_longer(cols = c(Imported, Exported), names_to = "Flux") %>%
   mutate(datetime = datetime_to_timestamp(datetime)) %>%
