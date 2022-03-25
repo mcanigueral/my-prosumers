@@ -30,7 +30,7 @@ convert_historic_to_instant_power <- function(df) {
       Imported = Imported - lag(Imported),
       Exported = Exported - lag(Exported)
     ) %>%
-    filter_laggable_timeseries(resolution = 5) %>%
+    filter_laggable_timeseries(period = minutes(5)) %>%
     mutate(
       Imported = Imported*1000*60/5, # E=P*t=P*5min/60min -> P=E*60/5
       Exported = Exported*1000*60/5
@@ -39,8 +39,8 @@ convert_historic_to_instant_power <- function(df) {
 }
 
 
-filter_laggable_timeseries <- function(df, resolution) {
-  previous_dttm <- df[[1]] - minutes(resolution)
+filter_laggable_timeseries <- function(df, period) {
+  previous_dttm <- df[[1]] - period
   idx_with_previous <- lag(df[[1]]) == previous_dttm
   filter(df, idx_with_previous)
 }

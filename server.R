@@ -154,6 +154,14 @@ auth0_server(function(input, output, session) {
   })
 
   output$plot_columns <- renderHighchart({
+    if (input$columns_unit == "day") {
+      period <- days(1)
+    } else if (input$columns_unit == "week") {
+      period <- weeks(1)
+    } else {
+      period <- months(1)
+    }
+
     power_data() %>%
       mutate(date = floor_date(datetime, unit = input$columns_unit, week_start = 1)) %>%
       group_by(date) %>%
@@ -162,7 +170,7 @@ auth0_server(function(input, output, session) {
         Imported = round(Imported - lag(Imported), 2),
         Exported = round(Exported - lag(Exported), 2)
       ) %>%
-      filter_laggable_timeseries(resolution = 60*24) %>%
+      filter_laggable_timeseries(period = period) %>%
       pivot_longer(cols = c(Imported, Exported), names_to = "Flux") %>%
       mutate(date = datetime_to_timestamp(date)) %>%
       hchart(type = "column", hcaes(x = date, y = value, group = Flux),
